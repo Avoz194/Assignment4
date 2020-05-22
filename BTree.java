@@ -26,7 +26,7 @@ public class BTree<T extends Comparable<T>> {
      *            of the B-Tree.
      */
     public BTree(int order) {
-        this.minKeySize = order;
+        this.minKeySize = order; //TODO: make sure answer t rules (probably not),need to change to order-1
         this.minChildrenSize = minKeySize + 1;
         this.maxKeySize = 2 * minKeySize;
         this.maxChildrenSize = maxKeySize + 1;
@@ -53,14 +53,15 @@ public class BTree<T extends Comparable<T>> {
      * {@inheritDoc}
      */
     public boolean add(T value) {
+        //TODO:Doesn't split on the way down
         if (root == null) {
             root = new Node<T>(null, maxKeySize, maxChildrenSize);
             root.addKey(value);
         } else {
             Node<T> node = root;
             while (node != null) {
-                if (node.numberOfChildren() == 0) {
-                    node.addKey(value);
+                if (node.numberOfChildren() == 0) { //adding only to a leaf
+                    node.addKey(value); //First insert the key, than split if needed
                     if (node.numberOfKeys() <= maxKeySize) {
                         // A-OK
                         break;
@@ -177,7 +178,7 @@ public class BTree<T extends Comparable<T>> {
      * @param node
      *            Node to remove value from
      * @return True if value was removed from the tree.
-     */
+     *///Todo: Does'nt return correct value - revisit
     private T remove(T value, Node<T> node) {
         if (node == null) return null;
 
@@ -196,7 +197,7 @@ public class BTree<T extends Comparable<T>> {
             // internal node
             Node<T> lesser = node.getChild(index);
             Node<T> greatest = this.getGreatestNode(lesser);
-            T replaceValue = this.removeGreatestValue(greatest);
+            T replaceValue = this.removeGreatestValue(greatest); //Remove Predecessor
             node.addKey(replaceValue);
             if (greatest.parent != null && greatest.numberOfKeys() < minKeySize) {
                 this.combined(greatest);
@@ -252,6 +253,7 @@ public class BTree<T extends Comparable<T>> {
     private Node<T> getNode(T value) {
         Node<T> node = root;
         while (node != null) {
+            //Go to the most right son if relevant
             T lesser = node.getKey(0);
             if (value.compareTo(lesser) < 0) {
                 if (node.numberOfChildren() > 0)
@@ -261,6 +263,7 @@ public class BTree<T extends Comparable<T>> {
                 continue;
             }
 
+            //Go to the most left son if relevant
             int numberOfKeys = node.numberOfKeys();
             int last = numberOfKeys - 1;
             T greater = node.getKey(last);
@@ -322,8 +325,9 @@ public class BTree<T extends Comparable<T>> {
         int indexOfLeftNeighbor = index - 1;
         int indexOfRightNeighbor = index + 1;
 
+        //TODO: left before right instead of right before left
         Node<T> rightNeighbor = null;
-        int rightNeighborSize = -minChildrenSize;
+        int rightNeighborSize = -minChildrenSize; //TODO: Why minus?
         if (indexOfRightNeighbor < parent.numberOfChildren()) {
             rightNeighbor = parent.getChild(indexOfRightNeighbor);
             rightNeighborSize = rightNeighbor.numberOfKeys();
@@ -360,7 +364,7 @@ public class BTree<T extends Comparable<T>> {
                 if (leftNeighbor.numberOfChildren() > 0) {
                     node.addChild(leftNeighbor.removeChild(leftNeighbor.numberOfChildren() - 1));
                 }
-            } else if (rightNeighbor != null && parent.numberOfKeys() > 0) {
+            } else if (rightNeighbor != null && parent.numberOfKeys() > 0) { //TODO : left before right
                 // Can't borrow from neighbors, try to combined with right neighbor
                 T removeValue = rightNeighbor.getKey(0);
                 int prev = getIndexOfPreviousValue(parent, removeValue);
@@ -431,7 +435,8 @@ public class BTree<T extends Comparable<T>> {
             if (t.compareTo(value) >= 0)
                 return i - 1;
         }
-        return node.numberOfKeys() - 1;
+        return node.numberOfKeys() - 1;      ///Todo: Does'nt return correct value - revisit
+
     }
 
     /**
@@ -509,7 +514,7 @@ public class BTree<T extends Comparable<T>> {
             } else if (childrenSize == 0) {
                 return true;
             } else if (keySize != (childrenSize - 1)) {
-                // If there are chilren, there should be one more child then
+                // If there are children, there should be one more child then
                 // keys
                 return false;
             } else if (childrenSize < minChildrenSize) {
