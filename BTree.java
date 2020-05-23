@@ -7,7 +7,7 @@ public class BTree<T extends Comparable<T>> {
     // Default to 2-3 Tree (Adjusted based on FAQ instructions)
     private int minKeySize = 1;
     private int minChildrenSize = minKeySize + 1; // 2
-    private int maxKeySize = 2 * minKeySize+1; // 3
+    private int maxKeySize = 2 * minKeySize + 1; // 3
     private int maxChildrenSize = maxKeySize + 1; // 4
 
     private Node<T> root = null;
@@ -16,39 +16,269 @@ public class BTree<T extends Comparable<T>> {
     /**
      * Constructor for B-Tree which defaults to a 2-3 B-Tree.
      */
-    public BTree() { }
+    public BTree() {
+    }
 
     /**
-     * Constructor for B-Tree of ordered parameter. Order here means minimum 
-     * number of keys in a non-root node. 
-     * 
-     * @param order
-     *            of the B-Tree.
+     * Constructor for B-Tree of ordered parameter. Order here means minimum
+     * number of keys in a non-root node.
+     *
+     * @param order of the B-Tree.
      */
     public BTree(int order) {
-        this.minKeySize = order-1; //TODO: make sure that the change to order-1 didn't harm existing functions
+        this.minKeySize = order - 1; //TODO: make sure that the change to order-1 didn't harm existing functions
         this.minChildrenSize = minKeySize + 1;
-        this.maxKeySize = 2 * minKeySize +1;
+        this.maxKeySize = 2 * minKeySize + 1;
         this.maxChildrenSize = maxKeySize + 1;
     }
-    
+
     //Task 2.1
+
+    /**
+     * 1pass insert value to tree. Search for relevant leaf to insert at, split along the way.
+     *
+     * @param value to insert
+     * @return True always after inserting the value
+     */
     public boolean insert(T value) {
-    	// TODO: implement your code here
-		return false;
+
+        if (root == null) {
+            root = new Node<T>(null, maxKeySize, maxChildrenSize);
+            root.addKey(value);
+        } else {
+            Node<T> node = root;
+            if (node.numberOfKeys() == maxKeySize) { //split if root is full
+                split(node);
+                node = root;
+            }
+            while (node != null) {
+                if (node.numberOfChildren() == 0) { //adding only to a leaf, we've splited in advanced if needed
+                    node.addKey(value);
+                    size++;
+                    return true;
+                }
+                // Navigate, split before continue in the loop
+
+                // Lesser or equal
+                else {
+                    T lesser = node.getKey(0);
+                    if (value.compareTo(lesser) <= 0) {
+                        Node<T> parent = node;
+                        node = node.getChild(0);
+                        if (node.numberOfKeys() == maxKeySize) {  //split if node has max size
+                            split(node); //following split, make sure to set node to the right child
+                            if (value.compareTo(parent.getKey(0)) > 0)
+                                node = parent.getChild(1);
+                            else
+                                node = parent.getChild(0);
+                        }
+                        continue;
+                    }
+
+                    // Greater
+                    int numberOfKeys = node.numberOfKeys();
+                    int last = numberOfKeys - 1;
+                    T greater = node.getKey(last);
+                    if (value.compareTo(greater) > 0) {
+                        Node<T> parent = node;
+                        node = node.getChild(numberOfKeys);
+                        if (node.numberOfKeys() == maxKeySize) {  //split if node has max size
+                            split(node);
+                            if (value.compareTo(parent.getKey(numberOfKeys)) > 0)
+                                node = parent.getChild(numberOfKeys + 1);
+                            else
+                                node = parent.getChild(numberOfKeys);
+                        }
+                        continue;
+                    }
+
+                    // Search internal nodes
+                    for (int i = 1; i < node.numberOfKeys(); i++) {
+                        T prev = node.getKey(i - 1);
+                        T next = node.getKey(i);
+                        if (value.compareTo(prev) > 0 && value.compareTo(next) <= 0) {
+                            Node<T> parent = node;
+                            node = node.getChild(i);
+                            if (node.numberOfKeys() == maxKeySize) {  //split if node has max size
+                                split(node);
+                                if (value.compareTo(parent.getKey(i)) > 0)
+                                    node = parent.getChild(i + 1);
+                                else
+                                    node = parent.getChild(i);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false; //TODO:make sure to switch to true later following tests
     }
-	
+
     public T delete(T value) {
-    	// TODO: implement your code here
-		return null;
+        T removed = null;
+        Node<T> node = this.getNodeWithCombined(value);
+        removed = remove(value, node);
+        return removed;
     }
-    
-	//Task 2.2
+
+    public T delete(T value, Node<T> node) {
+
+        if (node == null) return null;
+
+        T removed = null;
+        if (node.numberOfChildren() == 0) {
+            // leaf node
+            if (node.parent == null && node.numberOfKeys() == 0) {
+                // Removing root node with no keys or children
+                root = null;
+            }
+            removed = node.removeKey(value);
+        } else {
+            // internal node
+            //iteratively try to replace with predecessor or successor
+            while (node.childrenSize > 0) {
+                int index = node.indexOf(value);
+                Node<T> lesser = node.getChild(index);
+                Node<T> bigger = node.getChild(index + 1);
+
+                //left child has more than minimum keys - replace with successor and combine along the way to the successor
+                if (lesser.keysSize > minKeySize) {
+                    removed = node.removeKey(value);
+                    Node<T> greatest = this.getGreatestNodeWithCombined(lesser);
+                    T replaceValue = this.removeGreatestValue(greatest); //Remove Predecessor
+                    node.addKey(replaceValue);
+                    break;
+                }
+                //right child has more than minimum keys - replace with Predecessor and combine along the way to the Predecessor
+                else if (bigger.keysSize > minKeySize) {
+                    removed = node.removeKey(value);
+                    Node<T> smallest = this.getSmllestNodeWithCombined(lesser);
+                    T replaceValue = this.removeSmallestValue(smallest); //Remove Successor
+                    node.addKey(replaceValue);
+                    break;
+                }
+                //merge value from node with bigger and lesser
+                else {
+                    lesser.addKey(node.removeKey(value));
+                    node.removeChild(bigger);
+                    node = lesser;
+                    for (int i = 0; i < bigger.keysSize; i++) {
+                        T v = bigger.getKey(i);
+                        node.addKey(v);
+                    }
+                    for (int i = 0; i < bigger.childrenSize; i++) {
+                        Node<T> c = bigger.getChild(i);
+                        node.addChild(c);
+                    }
+                }
+            }
+            //we've merged bigger and lesser all the way to the leaf level
+            if (removed == null)
+                removed = node.removeKey(value);
+        }
+        size--;
+
+        return removed;
+    }
+
+    /**
+     * Get the node with value, while using combined on the nodes along the way with minKeySize.
+     *
+     * @param value to find in the tree.
+     * @return Node<T> with value.
+     */
+    private Node<T> getNodeWithCombined(T value) {
+        Node<T> node = root;
+        while (node != null) {
+            //Go to the most right son if relevant
+            T lesser = node.getKey(0);
+            if (value.compareTo(lesser) < 0) {
+                if (node.numberOfChildren() > 0) {
+                    node = node.getChild(0);
+                    if (node.numberOfKeys() <= minKeySize)  //if node has minKeySize, combine before checking content
+                        this.combined(node);
+                } else
+                    node = null;
+                continue;
+            }
+
+            //Go to the most left son if relevant
+            int numberOfKeys = node.numberOfKeys();
+            int last = numberOfKeys - 1;
+            T greater = node.getKey(last);
+            if (value.compareTo(greater) > 0) {
+                if (node.numberOfChildren() > numberOfKeys) {
+                    node = node.getChild(numberOfKeys);
+                    if (node.numberOfKeys() <= minKeySize) //if node has minKeySize, combine before checking content
+                        this.combined(node);
+                } else
+                    node = null;
+                continue;
+            }
+
+            for (int i = 0; i < numberOfKeys; i++) {
+                T currentValue = node.getKey(i);
+                if (currentValue.compareTo(value) == 0) {
+                    return node;
+                }
+                int next = i + 1;
+                if (next <= last) {
+                    T nextValue = node.getKey(next);
+                    if (currentValue.compareTo(value) < 0 && nextValue.compareTo(value) > 0) {
+                        if (next < node.numberOfChildren()) {
+                            node = node.getChild(next);
+                            if (node.numberOfKeys() <= minKeySize) //if node has minKeySize, combine before checking content
+                                this.combined(node);
+                            break;
+                        }
+                        return null;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get the greatest valued child from node, use combined on nodes with minimumKeys along the way
+     *
+     * @param nodeToGet child with the greatest value.
+     * @return Node<T> child with greatest value.
+     */
+    private Node<T> getGreatestNodeWithCombined(Node<T> nodeToGet) {
+        Node<T> node = nodeToGet;
+        while (node.numberOfChildren() > 0) {
+            node = node.getChild(node.numberOfChildren() - 1);
+            if (node.numberOfKeys() <= minKeySize) //if node has minKeySize, combine before checking content
+                this.combined(node);
+        }
+        return node;
+    }
+
+    /**
+     * Get the smallest valued child from node, use combined on nodes with minimumKeys along the way
+     *
+     * @param nodeToGet child with the smallest value.
+     * @return Node<T> child with smallest value.
+     */
+    private Node<T> getSmllestNodeWithCombined(Node<T> nodeToGet) {
+        Node<T> node = nodeToGet;
+        while (node.numberOfChildren() > 0) {
+            node = node.getChild(0);
+            if (node.numberOfKeys() <= minKeySize) //if node has minKeySize, combine before checking content
+                this.combined(node);
+        }
+        return node;
+    }
+
+    //Task 2.2
     public boolean insert2pass(T value) {
-    	// TODO: implement your code here
-		return false;
+        // TODO: implement your code here
+        return false;
     }
-    
+
     /**
      * {@inheritDoc}
      */
@@ -65,7 +295,7 @@ public class BTree<T extends Comparable<T>> {
                     if (node.numberOfKeys() <= maxKeySize) {
                         // A-OK
                         break;
-                    }                         
+                    }
                     // Need to split up
                     split(node);
                     break;
@@ -107,9 +337,8 @@ public class BTree<T extends Comparable<T>> {
 
     /**
      * The node's key size is greater than maxKeySize, split down the middle.
-     * 
-     * @param nodeToSplit
-     *            to split.
+     *
+     * @param nodeToSplit to split.
      */
     private void split(Node<T> nodeToSplit) {
         Node<T> node = nodeToSplit;
@@ -166,19 +395,17 @@ public class BTree<T extends Comparable<T>> {
     public T remove(T value) {
         T removed = null;
         Node<T> node = this.getNode(value);
-        removed = remove(value,node);
+        removed = remove(value, node);
         return removed;
     }
 
     /**
      * Remove the value from the Node and check invariants
-     * 
-     * @param value
-     *            T to remove from the tree
-     * @param node
-     *            Node to remove value from
-     * @return True if value was removed from the tree.
-     *///Todo: Does'nt return correct value - revisit
+     *
+     * @param value T to remove from the tree
+     * @param node  Node to remove value from
+     * @return removed value
+     */
     private T remove(T value, Node<T> node) {
         if (node == null) return null;
 
@@ -214,15 +441,28 @@ public class BTree<T extends Comparable<T>> {
 
     /**
      * Remove greatest valued key from node.
-     * 
-     * @param node
-     *            to remove greatest value from.
+     *
+     * @param node to remove greatest value from.
      * @return value removed;
      */
     private T removeGreatestValue(Node<T> node) {
         T value = null;
         if (node.numberOfKeys() > 0) {
             value = node.removeKey(node.numberOfKeys() - 1);
+        }
+        return value;
+    }
+
+    /**
+     * Remove smallest valued key from node.
+     *
+     * @param node to remove smallest value from.
+     * @return value removed;
+     */
+    private T removeSmallestValue(Node<T> node) {
+        T value = null;
+        if (node.numberOfKeys() > 0) {
+            value = node.removeKey(0);
         }
         return value;
     }
@@ -245,9 +485,8 @@ public class BTree<T extends Comparable<T>> {
 
     /**
      * Get the node with value.
-     * 
-     * @param value
-     *            to find in the tree.
+     *
+     * @param value to find in the tree.
      * @return Node<T> with value.
      */
     private Node<T> getNode(T value) {
@@ -299,9 +538,8 @@ public class BTree<T extends Comparable<T>> {
 
     /**
      * Get the greatest valued child from node.
-     * 
-     * @param nodeToGet
-     *            child with the greatest value.
+     *
+     * @param nodeToGet child with the greatest value.
      * @return Node<T> child with greatest value.
      */
     private Node<T> getGreatestNode(Node<T> nodeToGet) {
@@ -314,9 +552,8 @@ public class BTree<T extends Comparable<T>> {
 
     /**
      * Combined children keys with parent when size is less than minKeySize.
-     * 
-     * @param node
-     *            with children to combined.
+     *
+     * @param node with children to combined.
      * @return True if combined successfully.
      */
     private boolean combined(Node<T> node) {
@@ -344,7 +581,8 @@ public class BTree<T extends Comparable<T>> {
                 node.addChild(leftNeighbor.removeChild(leftNeighbor.numberOfChildren() - 1));
             }
 
-        } else { Node<T> rightNeighbor = null;
+        } else {
+            Node<T> rightNeighbor = null;
             int rightNeighborSize = -minChildrenSize;
             if (indexOfRightNeighbor < parent.numberOfChildren()) {
                 rightNeighbor = parent.getChild(indexOfRightNeighbor);
@@ -422,14 +660,11 @@ public class BTree<T extends Comparable<T>> {
 
     /**
      * Get the index of previous key in node.
-     * 
-     * @param node
-     *            to find the previous key in.
-     * @param value
-     *            to find a previous value for.
-     * @return index of previous key or -1 if not found.
+     *
+     * @param node  to find the previous key in.
+     * @param value to find a previous value for.
+     * @return index of previous key or node.numberOfKeys() - 1 if not found.
      */
-    //TODO:Adjust return doc
 
     private int getIndexOfPreviousValue(Node<T> node, T value) {
         for (int i = 1; i < node.numberOfKeys(); i++) {
@@ -437,20 +672,17 @@ public class BTree<T extends Comparable<T>> {
             if (t.compareTo(value) >= 0)
                 return i - 1;
         }
-        return node.numberOfKeys() - 1;      ///Todo: Does'nt return correct value - revisit
+        return node.numberOfKeys() - 1;
 
     }
 
     /**
      * Get the index of next key in node.
-     * 
-     * @param node
-     *            to find the next key in.
-     * @param value
-     *            to find a next value for.
-     * @return index of next key or -1 if not found.
+     *
+     * @param node  to find the next key in.
+     * @param value to find a next value for.
+     * @return index of next key or node.numberOfKeys() - 1 if not found.
      */
-    //TODO:Adjust return doc
     private int getIndexOfNextValue(Node<T> node, T value) {
         for (int i = 0; i < node.numberOfKeys(); i++) {
             T t = node.getKey(i);
@@ -477,9 +709,8 @@ public class BTree<T extends Comparable<T>> {
 
     /**
      * Validate the node according to the B-Tree invariants.
-     * 
-     * @param node
-     *            to validate.
+     *
+     * @param node to validate.
      * @return True if valid.
      */
     private boolean validateNode(Node<T> node) {
@@ -565,8 +796,8 @@ public class BTree<T extends Comparable<T>> {
     public String toString() {
         return TreePrinter.getString(this);
     }
-    
-    
+
+
     private static class Node<T extends Comparable<T>> {
 
         private T[] keys = null;
