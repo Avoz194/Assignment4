@@ -83,7 +83,7 @@ public class CuckooHashing {
                 } 
                 if(cycle)
                 	break;
-                if(pos==kick_pos)
+                if(pos==kick_pos || kick_pos==-1)
                 	kick_pos= myhash(x, 0);
 				else
 					kick_pos=pos;
