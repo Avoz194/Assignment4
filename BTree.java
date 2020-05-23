@@ -4,11 +4,11 @@ import java.util.Comparator;
 @SuppressWarnings("unchecked")
 public class BTree<T extends Comparable<T>> {
 
-    // Default to 2-3 Tree
+    // Default to 2-3 Tree (Adjusted based on FAQ instructions)
     private int minKeySize = 1;
     private int minChildrenSize = minKeySize + 1; // 2
-    private int maxKeySize = 2 * minKeySize; // 2
-    private int maxChildrenSize = maxKeySize + 1; // 3
+    private int maxKeySize = 2 * minKeySize+1; // 3
+    private int maxChildrenSize = maxKeySize + 1; // 4
 
     private Node<T> root = null;
     private int size = 0;
@@ -26,9 +26,9 @@ public class BTree<T extends Comparable<T>> {
      *            of the B-Tree.
      */
     public BTree(int order) {
-        this.minKeySize = order; //TODO: make sure answer t rules (probably not),need to change to order-1
+        this.minKeySize = order-1; //TODO: make sure that the change to order-1 didn't harm existing functions
         this.minChildrenSize = minKeySize + 1;
-        this.maxKeySize = 2 * minKeySize;
+        this.maxKeySize = 2 * minKeySize +1;
         this.maxChildrenSize = maxKeySize + 1;
     }
     
@@ -53,7 +53,7 @@ public class BTree<T extends Comparable<T>> {
      * {@inheritDoc}
      */
     public boolean add(T value) {
-        //TODO:Doesn't split on the way down
+
         if (root == null) {
             root = new Node<T>(null, maxKeySize, maxChildrenSize);
             root.addKey(value);
@@ -156,7 +156,7 @@ public class BTree<T extends Comparable<T>> {
             parent.addChild(left);
             parent.addChild(right);
 
-            if (parent.numberOfKeys() > maxKeySize) split(parent);
+            if (parent.numberOfKeys() > maxKeySize) split(parent); //TODO: consider removing this line for 1pass
         }
     }
 
@@ -202,7 +202,7 @@ public class BTree<T extends Comparable<T>> {
             if (greatest.parent != null && greatest.numberOfKeys() < minKeySize) {
                 this.combined(greatest);
             }
-            if (greatest.numberOfChildren() > maxChildrenSize) {
+            if (greatest.numberOfChildren() > maxChildrenSize) {   //TODO: consider removing
                 this.split(greatest);
             }
         }
@@ -327,7 +327,7 @@ public class BTree<T extends Comparable<T>> {
 
         //TODO: left before right instead of right before left
         Node<T> rightNeighbor = null;
-        int rightNeighborSize = -minChildrenSize; //TODO: Why minus?
+        int rightNeighborSize = -minChildrenSize;
         if (indexOfRightNeighbor < parent.numberOfChildren()) {
             rightNeighbor = parent.getChild(indexOfRightNeighbor);
             rightNeighborSize = rightNeighbor.numberOfKeys();
@@ -429,6 +429,8 @@ public class BTree<T extends Comparable<T>> {
      *            to find a previous value for.
      * @return index of previous key or -1 if not found.
      */
+    //TODO:Adjust return doc
+
     private int getIndexOfPreviousValue(Node<T> node, T value) {
         for (int i = 1; i < node.numberOfKeys(); i++) {
             T t = node.getKey(i);
@@ -448,6 +450,7 @@ public class BTree<T extends Comparable<T>> {
      *            to find a next value for.
      * @return index of next key or -1 if not found.
      */
+    //TODO:Adjust return doc
     private int getIndexOfNextValue(Node<T> node, T value) {
         for (int i = 0; i < node.numberOfKeys(); i++) {
             T t = node.getKey(i);
