@@ -34,14 +34,219 @@ public class BTree<T extends Comparable<T>> {
     
     //Task 2.1
     public boolean insert(T value) {
-    	// TODO: implement your code here
-		return false;
+        if (root == null) { // tree is empty
+            root = new Node<T>(null, maxKeySize, maxChildrenSize);
+            root.addKey(value);
+        } else {
+            Node<T> node = root;
+            if(node.numberOfKeys() == maxKeySize){ //root is full
+                split(node);
+                node = root;
+            }
+            while (node != null) {
+                if (node.numberOfChildren() == 0) { //this is a leaf
+                    if (node.numberOfKeys() < maxKeySize) {
+                        node.addKey(value);
+                        return true;
+                    }
+                    // Need to split up
+                    Node<T> parent = node.parent;
+                    split(node);
+
+                    node.addKey(value); //TODO not sure if we still have "node" after split
+                    return true;
+
+                } else { //not a leaf
+                    if(node.numberOfKeys() == maxKeySize){ //node is full
+                        split(node);
+                    }
+                    // Navigate
+
+                    // Lesser or equal
+                    T lesser = node.getKey(0);
+                    if (value.compareTo(lesser) <= 0) {
+                        node = node.getChild(0);
+                       // if(node.numberOfKeys() == maxKeySize) split(node);
+                        continue;
+                    }
+                    // Greater
+                    int numberOfKeys = node.numberOfKeys();
+                    int last = numberOfKeys - 1;
+                    T greater = node.getKey(last);
+                    if (value.compareTo(greater) > 0) {
+                        node = node.getChild(numberOfKeys);
+                       // if(node.numberOfKeys() == maxKeySize) split(node);
+                        continue;
+                    }
+
+                    // Search internal nodes
+                    for (int i = 1; i < node.numberOfKeys(); i++) {
+                        T prev = node.getKey(i - 1);
+                        T next = node.getKey(i);
+                        if (value.compareTo(prev) > 0 && value.compareTo(next) <= 0) {
+                            node = node.getChild(i);
+                           // if(node.numberOfKeys() == maxKeySize) split(node);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
     }
-	
+    /**
+     * Get the node with value considering invariants
+     *
+     * @param value to find in the tree
+     *
+     * @return Node<T> with value.
+     */
+    //TODO fix root manually
+    private Node<T> getNodeOnePass(T value) {
+        Node<T> node = root;
+            while(node != null) {
+                if(node.numberOfKeys() == minKeySize)  combined(node);
+
+                //Go to the most left son if relevant
+                T lesser = node.getKey(0);
+                if (value.compareTo(lesser) < 0) {
+                    if (node.numberOfChildren() > 0)
+                        node = node.getChild(0);
+                    else
+                        node = null;
+                    continue;
+                }
+
+                //Go to the most right son if relevant
+                int numberOfKeys = node.numberOfKeys();
+                int last = numberOfKeys - 1;
+                T greater = node.getKey(last);
+                if (value.compareTo(greater) > 0) {
+                    if (node.numberOfChildren() > numberOfKeys)
+                        node = node.getChild(numberOfKeys);
+                    else
+                        node = null;
+                    continue;
+                }
+
+                for (int i = 0; i < numberOfKeys; i++) {
+                    T currentValue = node.getKey(i);
+                    if (currentValue.compareTo(value) == 0) {
+                        return node;
+                    }
+
+                    int next = i + 1;
+                    if (next <= last) {
+                        T nextValue = node.getKey(next);
+                        if (currentValue.compareTo(value) < 0 && nextValue.compareTo(value) > 0) {
+                            if (next < node.numberOfChildren()) {
+                                node = node.getChild(next);
+                                break;
+                            }
+                            return null;
+                        }
+                    }
+                }
+            }
+        return null;
+    }
+
+    /**
+     * Get the greatest valued child from node considering invariants
+     *
+     * @param nodeToGet node to find his greatest child
+     *
+     * @return Node<T> child with greatest value.
+     */
+    //TODO cant run on root.
+    private Node<T> getGreatestNodeOnePass(Node<T> nodeToGet) {
+        Node<T> node = nodeToGet;
+        while (node.numberOfChildren() > 0){
+            if(node.numberOfKeys() == minKeySize) { // need to combine
+                combined(node);
+                node = node.getChild(node.numberOfChildren() - 1);
+            }
+        }
+
+        return node;
+    }
+    private Node<T> getSmallestNodeOnePass(Node<T> nodeToGet) {
+        Node<T> node = nodeToGet;
+        while (node.numberOfChildren() > 0){
+            if(node.numberOfKeys() == minKeySize) { // need to combine
+                combined(node);
+                node = node.getChild(0);
+            }
+        }
+
+        return node;
+    }
+    /**
+     * delete finds the node to delete value from
+     * @param value to remove from the tree
+     * @return null if not successful //mmmmmmmmmmmmmmmmmmmmm check later
+     */
     public T delete(T value) {
-    	// TODO: implement your code here
-		return null;
+        Node<T> node = getNodeOnePass(value);
+        T toRemove = delete(value,node);
+        return toRemove; //TODO check later
     }
+
+    /**
+     * delete the value from the node
+     * @param value to remove from the tree
+     * @param node to remove value from
+     * @return null if not successful //mmmmmmmmmmmmmmmmmmmmm check later
+     */
+    private T delete(T value, Node<T> node){
+        if (node == null) return null;
+
+        T removed = null;
+        int index = node.indexOf(value);
+        //case 1
+        if (node.numberOfChildren() == 0) { //node is a leaf
+            node.removeKey(value);
+            if (node.parent == null && node.numberOfKeys() == 0) {
+                // root node with no keys or children
+                root = null;
+            }
+        } else { // internal node
+            Node<T> lesser = node.getChild(index);
+            Node<T> greater = node.getChild(index+1);
+
+            //case 2 or 3 try to use predecessor or successor
+            if(lesser.numberOfKeys() > minKeySize){ // use predecessor
+                lesser = getGreatestNodeOnePass(lesser);
+                if(lesser.numberOfKeys() == minKeySize) combined(lesser); //TODO maybe change in "getgreatestnode"
+                T predecessor = removeGreatestValue(lesser);
+                node.removeKey(value);
+                node.addKey(predecessor);
+            } else if(greater.numberOfKeys() > minKeySize){ // use successor
+                greater = getSmallestNodeOnePass(greater);
+                if(greater.numberOfKeys() == minKeySize) combined(greater); //TODO maybe change in "getgreatestnode"
+                T successor = greater.removeKey(0); //TODO check
+                node.removeKey(value);
+                node.addKey(successor);
+            } else { // case 4 cant use predecessor and successor
+                T removeValue = greater.getKey(0);
+                int prev = getIndexOfPreviousValue(node, removeValue);
+                T parentValue = node.removeKey(prev);
+                node.removeChild(greater);
+                lesser.addKey(parentValue);
+                for (int i = 0; i < greater.keysSize; i++) {
+                    T v = greater.getKey(i);
+                    lesser.addKey(v);
+                }
+                for (int i = 0; i < greater.childrenSize; i++) {
+                    Node<T> c = greater.getChild(i);
+                    lesser.addChild(c);
+                }
+            }
+        }
+        size--;
+        return null;
+    }
+
     
 	//Task 2.2
     public boolean insert2pass(T value) {
