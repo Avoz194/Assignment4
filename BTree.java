@@ -33,49 +33,61 @@ public class BTree<T extends Comparable<T>> {
     }
     
     //Task 2.1
+    /**
+     * 1pass insert value to tree. Search for relevant leaf to insert at, split along the way.
+     *
+     * @param value to insert
+     * @return True always after inserting the value
+     */
     public boolean insert(T value) {
-        if (root == null) { // tree is empty
+
+        if (root == null) {
             root = new Node<T>(null, maxKeySize, maxChildrenSize);
             root.addKey(value);
         } else {
             Node<T> node = root;
-            if(node.numberOfKeys() == maxKeySize){ //root is full
+            if (node.numberOfKeys() == maxKeySize) { //split if root is full
                 split(node);
                 node = root;
             }
             while (node != null) {
-                if (node.numberOfChildren() == 0) { //this is a leaf
-                    if (node.numberOfKeys() < maxKeySize) {
-                        node.addKey(value);
-                        return true;
-                    }
-                    // Need to split up
-                    Node<T> parent = node.parent;
-                    split(node);
-
-                    node.addKey(value); //TODO not sure if we still have "node" after split
+                if (node.numberOfChildren() == 0) { //adding only to a leaf, we've splited in advanced if needed
+                    node.addKey(value);
+                    size++;
                     return true;
+                }
+                // Navigate, split before continue in the loop
 
-                } else { //not a leaf
-                    if(node.numberOfKeys() == maxKeySize){ //node is full
-                        split(node);
-                    }
-                    // Navigate
-
-                    // Lesser or equal
+                // Lesser or equal
+                else {
                     T lesser = node.getKey(0);
                     if (value.compareTo(lesser) <= 0) {
+                        Node<T> parent = node;
                         node = node.getChild(0);
-                       // if(node.numberOfKeys() == maxKeySize) split(node);
+                        if (node.numberOfKeys() == maxKeySize) {  //split if node has max size
+                            split(node); //following split, make sure to set node to the right child
+                            if (value.compareTo(parent.getKey(0)) > 0)
+                                node = parent.getChild(1);
+                            else
+                                node = parent.getChild(0);
+                        }
                         continue;
                     }
+
                     // Greater
                     int numberOfKeys = node.numberOfKeys();
                     int last = numberOfKeys - 1;
                     T greater = node.getKey(last);
                     if (value.compareTo(greater) > 0) {
+                        Node<T> parent = node;
                         node = node.getChild(numberOfKeys);
-                       // if(node.numberOfKeys() == maxKeySize) split(node);
+                        if (node.numberOfKeys() == maxKeySize) {  //split if node has max size
+                            split(node);
+                            if (value.compareTo(parent.getKey(numberOfKeys)) > 0)
+                                node = parent.getChild(numberOfKeys + 1);
+                            else
+                                node = parent.getChild(numberOfKeys);
+                        }
                         continue;
                     }
 
@@ -84,16 +96,25 @@ public class BTree<T extends Comparable<T>> {
                         T prev = node.getKey(i - 1);
                         T next = node.getKey(i);
                         if (value.compareTo(prev) > 0 && value.compareTo(next) <= 0) {
+                            Node<T> parent = node;
                             node = node.getChild(i);
-                           // if(node.numberOfKeys() == maxKeySize) split(node);
+                            if (node.numberOfKeys() == maxKeySize) {  //split if node has max size
+                                split(node);
+                                if (value.compareTo(parent.getKey(i)) > 0)
+                                    node = parent.getChild(i + 1);
+                                else
+                                    node = parent.getChild(i);
+                            }
                             break;
                         }
                     }
                 }
             }
         }
-        return false;
+
+        return false; //TODO:make sure to switch to true later following tests
     }
+
     /**
      * Get the node with value considering invariants
      *
@@ -101,11 +122,11 @@ public class BTree<T extends Comparable<T>> {
      *
      * @return Node<T> with value.
      */
-    //TODO fix root manually
+
     private Node<T> getNodeOnePass(T value) {
         Node<T> node = root;
             while(node != null) {
-                if(node.numberOfKeys() == minKeySize)  combined(node);
+                if(node != root & node.numberOfKeys() == minKeySize)  combined(node);
 
                 //Go to the most left son if relevant
                 T lesser = node.getKey(0);
@@ -158,93 +179,99 @@ public class BTree<T extends Comparable<T>> {
      *
      * @return Node<T> child with greatest value.
      */
-    //TODO cant run on root.
+
     private Node<T> getGreatestNodeOnePass(Node<T> nodeToGet) {
         Node<T> node = nodeToGet;
         while (node.numberOfChildren() > 0){
-            if(node.numberOfKeys() == minKeySize) { // need to combine
+            if(node != root & node.numberOfKeys() == minKeySize) { // need to combine
                 combined(node);
-                node = node.getChild(node.numberOfChildren() - 1);
             }
+            node = node.getChild(node.numberOfChildren() - 1);
         }
-
+        if(node.numberOfKeys() == minKeySize) combined(node);
         return node;
     }
+
     private Node<T> getSmallestNodeOnePass(Node<T> nodeToGet) {
         Node<T> node = nodeToGet;
         while (node.numberOfChildren() > 0){
-            if(node.numberOfKeys() == minKeySize) { // need to combine
+            if(node != root & node.numberOfKeys() == minKeySize) { // need to combine
                 combined(node);
-                node = node.getChild(0);
             }
+            node = node.getChild(0);
+
         }
+        if(node.numberOfKeys() == minKeySize) combined(node);
 
         return node;
     }
     /**
      * delete finds the node to delete value from
      * @param value to remove from the tree
-     * @return null if not successful //mmmmmmmmmmmmmmmmmmmmm check later
+     * @return null if not successful
      */
     public T delete(T value) {
         Node<T> node = getNodeOnePass(value);
         T toRemove = delete(value,node);
-        return toRemove; //TODO check later
+        return toRemove;
     }
 
     /**
      * delete the value from the node
      * @param value to remove from the tree
      * @param node to remove value from
-     * @return null if not successful //mmmmmmmmmmmmmmmmmmmmm check later
+     * @return null if not successful
      */
     private T delete(T value, Node<T> node){
         if (node == null) return null;
-
         T removed = null;
+        while(removed == null) {
         int index = node.indexOf(value);
-        //case 1
-        if (node.numberOfChildren() == 0) { //node is a leaf
-            node.removeKey(value);
-            if (node.parent == null && node.numberOfKeys() == 0) {
-                // root node with no keys or children
-                root = null;
-            }
-        } else { // internal node
-            Node<T> lesser = node.getChild(index);
-            Node<T> greater = node.getChild(index+1);
-
-            //case 2 or 3 try to use predecessor or successor
-            if(lesser.numberOfKeys() > minKeySize){ // use predecessor
-                lesser = getGreatestNodeOnePass(lesser);
-                if(lesser.numberOfKeys() == minKeySize) combined(lesser); //TODO maybe change in "getgreatestnode"
-                T predecessor = removeGreatestValue(lesser);
-                node.removeKey(value);
-                node.addKey(predecessor);
-            } else if(greater.numberOfKeys() > minKeySize){ // use successor
-                greater = getSmallestNodeOnePass(greater);
-                if(greater.numberOfKeys() == minKeySize) combined(greater); //TODO maybe change in "getgreatestnode"
-                T successor = greater.removeKey(0); //TODO check
-                node.removeKey(value);
-                node.addKey(successor);
-            } else { // case 4 cant use predecessor and successor
-                T removeValue = greater.getKey(0);
-                int prev = getIndexOfPreviousValue(node, removeValue);
-                T parentValue = node.removeKey(prev);
-                node.removeChild(greater);
-                lesser.addKey(parentValue);
-                for (int i = 0; i < greater.keysSize; i++) {
-                    T v = greater.getKey(i);
-                    lesser.addKey(v);
+            //case 1
+            if (node.numberOfChildren() == 0) { //node is a leaf
+                removed = node.removeKey(value);
+                if (node.parent == null && node.numberOfKeys() == 0) {
+                    // root node with no keys or children
+                    root = null;
                 }
-                for (int i = 0; i < greater.childrenSize; i++) {
-                    Node<T> c = greater.getChild(i);
-                    lesser.addChild(c);
+                break;
+            } else { // internal node
+                Node<T> lesser = node.getChild(index);
+                Node<T> greater = node.getChild(index + 1);
+
+                //case 2 or 3 try to use predecessor or successor
+                if (lesser.numberOfKeys() > minKeySize) { // use predecessor
+                    lesser = getGreatestNodeOnePass(lesser);
+                    T predecessor = removeGreatestValue(lesser);
+                    removed = node.removeKey(value);
+                    node.addKey(predecessor);
+                    break;
+                } else if (greater.numberOfKeys() > minKeySize) { // use successor
+                    greater = getSmallestNodeOnePass(greater);
+                    T successor = greater.removeKey(0);
+                    removed = node.removeKey(value);
+                    node.addKey(successor);
+                    break;
+                } else { // case 4 cant use predecessor and successor
+                    T removeValue = greater.getKey(0);
+                    int prev = getIndexOfPreviousValue(node, removeValue);
+                    T parentValue = node.removeKey(prev);
+                    node.removeChild(greater);
+                    lesser.addKey(parentValue);
+                    for (int i = 0; i < greater.keysSize; i++) {
+                        T v = greater.getKey(i);
+                        lesser.addKey(v);
+                    }
+                    for (int i = 0; i < greater.childrenSize; i++) {
+                        Node<T> c = greater.getChild(i);
+                        lesser.addChild(c);
+                    }
+                    node = lesser;
                 }
             }
         }
-        size--;
-        return null;
+        if(removed != null) size--;
+        return removed;
     }
 
     
