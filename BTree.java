@@ -476,7 +476,7 @@ public class BTree<T extends Comparable<T>> {
             parent.addChild(left);
             parent.addChild(right);
 
-            if (parent.numberOfKeys() > maxKeySize) split(parent); //TODO: consider removing this line for 1pass
+            if (parent.numberOfKeys() > maxKeySize) split(parent);
         }
     }
 
@@ -740,16 +740,16 @@ public class BTree<T extends Comparable<T>> {
      *
      * @param node  to find the previous key in.
      * @param value to find a previous value for.
-     * @return index of previous key or -1 if not found.
+     * @return index of previous key or numberOfKeys-1 if not found.
      */
-    //TODO:Adjust return doc
+
     private int getIndexOfPreviousValue(Node<T> node, T value) {
         for (int i = 1; i < node.numberOfKeys(); i++) {
             T t = node.getKey(i);
             if (t.compareTo(value) >= 0)
                 return i - 1;
         }
-        return node.numberOfKeys() - 1;      ///Todo: Does'nt return correct value - revisit
+        return node.numberOfKeys() - 1;
 
     }
 
@@ -758,9 +758,9 @@ public class BTree<T extends Comparable<T>> {
      *
      * @param node  to find the next key in.
      * @param value to find a next value for.
-     * @return index of next key or -1 if not found.
+     * @return index of next key or numberOfKeys-1 if not found.
      */
-    //TODO:Adjust return doc
+
     private int getIndexOfNextValue(Node<T> node, T value) {
         for (int i = 0; i < node.numberOfKeys(); i++) {
             T t = node.getKey(i);
