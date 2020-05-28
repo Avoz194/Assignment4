@@ -314,61 +314,61 @@ public class BTree<T extends Comparable<T>> {
      * @return true after inserting
      */
     //Task 2.2
-    public boolean insert2pass(T value) {
-        if (root == null) {
-            root = new Node<T>(null, maxKeySize, maxChildrenSize);
-            root.addKey(value);
-            size++;
-            return true;
-        } else {
-            Node<T> node = root;
-            //search for the right place to insert the value at (no spliting on the first pass)
-            while (node != null) {
-                if (node.numberOfChildren() == 0) { //adding only to a leaf
-                    break;
-                }
-                // Navigate
-
-                // Lesser or equal
-                T lesser = node.getKey(0);
-                if (value.compareTo(lesser) <= 0) {
-                    node = node.getChild(0);
-                    continue;
-                }
-
-                // Greater
-                int numberOfKeys = node.numberOfKeys();
-                int last = numberOfKeys - 1;
-                T greater = node.getKey(last);
-                if (value.compareTo(greater) > 0) {
-                    node = node.getChild(numberOfKeys);
-                    continue;
-                }
-
-                // Search internal nodes
-                for (int i = 1; i < node.numberOfKeys(); i++) {
-                    T prev = node.getKey(i - 1);
-                    T next = node.getKey(i);
-                    if (value.compareTo(prev) > 0 && value.compareTo(next) <= 0) {
-                        node = node.getChild(i);
-                        break;
-                    }
-                }
-            }
-            if (node.numberOfKeys() == maxKeySize) { //in case the leaf has maximum number
-                while (node.parent != null && node.parent.numberOfKeys() == maxKeySize) { //ascent to the parent with maxKeySize
-                    node = node.parent;
-                }
-
-            }
-            insertOnePass(value, node); //starting node, use one pass insert to insert the value to the tree while spliting along the way
-
-
-        }
-
-
-        return true;
-    }
+    //public boolean insert2pass(T value) {
+    //    if (root == null) {
+    //        root = new Node<T>(null, maxKeySize, maxChildrenSize);
+    //        root.addKey(value);
+    //        size++;
+    //        return true;
+    //    } else {
+    //        Node<T> node = root;
+    //        //search for the right place to insert the value at (no spliting on the first pass)
+    //        while (node != null) {
+    //            if (node.numberOfChildren() == 0) { //adding only to a leaf
+    //                break;
+    //            }
+    //            // Navigate
+//
+    //            // Lesser or equal
+    //            T lesser = node.getKey(0);
+    //            if (value.compareTo(lesser) <= 0) {
+    //                node = node.getChild(0);
+    //                continue;
+    //            }
+//
+    //            // Greater
+    //            int numberOfKeys = node.numberOfKeys();
+    //            int last = numberOfKeys - 1;
+    //            T greater = node.getKey(last);
+    //            if (value.compareTo(greater) > 0) {
+    //                node = node.getChild(numberOfKeys);
+    //                continue;
+    //            }
+//
+    //            // Search internal nodes
+    //            for (int i = 1; i < node.numberOfKeys(); i++) {
+    //                T prev = node.getKey(i - 1);
+    //                T next = node.getKey(i);
+    //                if (value.compareTo(prev) > 0 && value.compareTo(next) <= 0) {
+    //                    node = node.getChild(i);
+    //                    break;
+    //                }
+    //            }
+    //        }
+    //        if (node.numberOfKeys() == maxKeySize) { //in case the leaf has maximum number
+    //            while (node.parent != null && node.parent.numberOfKeys() == maxKeySize) { //ascent to the parent with maxKeySize
+    //                node = node.parent;
+    //            }
+//
+    //        }
+    //        insertOnePass(value, node); //starting node, use one pass insert to insert the value to the tree while spliting along the way
+//
+//
+    //    }
+//
+//
+    //    return true;
+    //}
 
     /**
      * {@inheritDoc}
