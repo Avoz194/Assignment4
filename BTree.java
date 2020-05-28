@@ -41,15 +41,42 @@ public class BTree<T extends Comparable<T>> {
      * @return True always after inserting the value
      */
     public boolean insert(T value) {
+        return insertOnePass(value, root);
+    }
 
-        if (root == null) {
+    /**
+     * 1pass insert value to tree, start descending from node startFromNode.
+     * Search for relevant leaf to insert at, split along the way
+     *
+     * @param value         to insert
+     * @param startFromNode node to start descending from
+     * @return True always after inserting the value
+     */
+    private boolean insertOnePass(T value, Node<T> startFromNode) {
+        if (startFromNode == root & root == null) {
             root = new Node<T>(null, maxKeySize, maxChildrenSize);
             root.addKey(value);
+            size++;
+            return true;
         } else {
-            Node<T> node = root;
-            if (node.numberOfKeys() == maxKeySize) { //split if root is full
-                split(node);
+            Node<T> node = null;
+            if (startFromNode == root) {
                 node = root;
+                if (node.numberOfKeys() == maxKeySize) { //split if root is full
+                    split(node);
+                    node = root;
+                }
+            } else {
+                node = startFromNode; //if we didn't start from Root, split the startFromNode if needed
+                Node<T> startParent = node.parent;
+                int index = startParent.indexOf(startFromNode);
+                if (node.numberOfKeys() == maxKeySize) {
+                    split(node);
+                    if (value.compareTo(startParent.getKey(index)) > 0)
+                        node = startParent.getChild(index + 1);
+                    else
+                        node = startParent.getChild(index);
+                }
             }
             while (node != null) {
                 if (node.numberOfChildren() == 0) { //adding only to a leaf, we've splited in advanced if needed
@@ -113,7 +140,8 @@ public class BTree<T extends Comparable<T>> {
             }
         }
 
-        return false; //TODO:make sure to switch to true later following tests
+
+        return true;
     }
 
     /**
@@ -279,11 +307,67 @@ public class BTree<T extends Comparable<T>> {
         return removed;
     }
 
-
+    /**
+     * insert the value to the tree using 2pass method, split only after inserting when acceding back to the first node require split
+     *
+     * @param value to remove from the tree
+     * @return true after inserting
+     */
     //Task 2.2
     public boolean insert2pass(T value) {
-        // TODO: implement your code here
-        return false;
+        if (root == null) {
+            root = new Node<T>(null, maxKeySize, maxChildrenSize);
+            root.addKey(value);
+            size++;
+            return true;
+        } else {
+            Node<T> node = root;
+            //search for the right place to insert the value at (no spliting on the first pass)
+            while (node != null) {
+                if (node.numberOfChildren() == 0) { //adding only to a leaf
+                    break;
+                }
+                // Navigate
+
+                // Lesser or equal
+                T lesser = node.getKey(0);
+                if (value.compareTo(lesser) <= 0) {
+                    node = node.getChild(0);
+                    continue;
+                }
+
+                // Greater
+                int numberOfKeys = node.numberOfKeys();
+                int last = numberOfKeys - 1;
+                T greater = node.getKey(last);
+                if (value.compareTo(greater) > 0) {
+                    node = node.getChild(numberOfKeys);
+                    continue;
+                }
+
+                // Search internal nodes
+                for (int i = 1; i < node.numberOfKeys(); i++) {
+                    T prev = node.getKey(i - 1);
+                    T next = node.getKey(i);
+                    if (value.compareTo(prev) > 0 && value.compareTo(next) <= 0) {
+                        node = node.getChild(i);
+                        break;
+                    }
+                }
+            }
+            if (node.numberOfKeys() == maxKeySize) { //in case the leaf has maximum number
+                while (node.parent != null && node.parent.numberOfKeys() == maxKeySize) { //ascent to the parent with maxKeySize
+                    node = node.parent;
+                }
+
+            }
+            insertOnePass(value, node); //starting node, use one pass insert to insert the value to the tree while spliting along the way
+
+
+        }
+
+
+        return true;
     }
 
     /**
@@ -799,17 +883,8 @@ public class BTree<T extends Comparable<T>> {
         private Node<T>[] children = null;
         private int childrenSize = 0;
         private Comparator<Node<T>> comparator = new Comparator<Node<T>>() {
-            public int compare(Node<T> arg0, Node<T> arg1) { //Changed compare's logic to compare not only first key in the list
-                int i=0;
-                int result = 0;
-                while (arg0.numberOfKeys()>i&arg1.numberOfKeys()>i) {
-                    result = arg0.getKey(0).compareTo(arg1.getKey(0));
-                    if (result != 0) return result;
-                    else i = i + 1;
-                }
-                if(arg0.numberOfKeys()>i) return 1;
-                else if (arg1.numberOfKeys()>i) return -1;
-                else return 0;
+            public int compare(Node<T> arg0, Node<T> arg1) {
+                return arg0.getKey(0).compareTo(arg1.getKey(0));
             }
         };
 
