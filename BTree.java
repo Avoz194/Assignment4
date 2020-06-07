@@ -26,7 +26,7 @@ public class BTree<T extends Comparable<T>> {
      * @param order of the B-Tree.
      */
     public BTree(int order) {
-        this.minKeySize = order - 1; //TODO: make sure that the change to order-1 didn't harm existing functions
+        this.minKeySize = order - 1;
         this.minChildrenSize = minKeySize + 1;
         this.maxKeySize = 2 * minKeySize + 1;
         this.maxChildrenSize = maxKeySize + 1;
@@ -139,8 +139,6 @@ public class BTree<T extends Comparable<T>> {
                 }
             }
         }
-
-
         return true;
     }
 
@@ -244,6 +242,7 @@ public class BTree<T extends Comparable<T>> {
     public T delete(T value) {
         Node<T> node = getNodeOnePass(value);
         T toRemove = delete(value, node);
+        if (toRemove != null) size--;
         return toRemove;
     }
 
@@ -303,7 +302,7 @@ public class BTree<T extends Comparable<T>> {
                 }
             }
         }
-        if (removed != null) size--;
+
         return removed;
     }
 
@@ -336,16 +335,16 @@ public class BTree<T extends Comparable<T>> {
                     continue;
                 }
 
-             // Greater
-             int numberOfKeys = node.numberOfKeys();
-             int last = numberOfKeys - 1;
-             T greater = node.getKey(last);
-             if (value.compareTo(greater) > 0) {
-                 node = node.getChild(numberOfKeys);
-                 continue;
-             }
+                // Greater
+                int numberOfKeys = node.numberOfKeys();
+                int last = numberOfKeys - 1;
+                T greater = node.getKey(last);
+                if (value.compareTo(greater) > 0) {
+                    node = node.getChild(numberOfKeys);
+                    continue;
+                }
 
-             // Search internal nodes
+                // Search internal nodes
                 for (int i = 1; i < node.numberOfKeys(); i++) {
                     T prev = node.getKey(i - 1);
                     T next = node.getKey(i);
@@ -360,11 +359,11 @@ public class BTree<T extends Comparable<T>> {
                     node = node.parent;
                 }
 
-          }
-          insertOnePass(value, node); //starting node, use one pass insert to insert the value to the tree while spliting along the way
+            }
+            insertOnePass(value, node); //starting node, use one pass insert to insert the value to the tree while spliting along the way
 
 
-      }
+        }
 
 
         return true;
@@ -496,7 +495,7 @@ public class BTree<T extends Comparable<T>> {
      * @param value T to remove from the tree
      * @param node  Node to remove value from
      * @return True if value was removed from the tree.
-     *///Todo: Does'nt return correct value - revisit
+     */
     private T remove(T value, Node<T> node) {
         if (node == null) return null;
 
@@ -520,7 +519,7 @@ public class BTree<T extends Comparable<T>> {
             if (greatest.parent != null && greatest.numberOfKeys() < minKeySize) {
                 this.combined(greatest);
             }
-            if (greatest.numberOfChildren() > maxChildrenSize) {   //TODO: consider removing
+            if (greatest.numberOfChildren() > maxChildrenSize) {
                 this.split(greatest);
             }
         }
@@ -884,7 +883,15 @@ public class BTree<T extends Comparable<T>> {
         private int childrenSize = 0;
         private Comparator<Node<T>> comparator = new Comparator<Node<T>>() {
             public int compare(Node<T> arg0, Node<T> arg1) {
-                return arg0.getKey(0).compareTo(arg1.getKey(0));
+                int i=0;
+                while (arg0.numberOfKeys()>i&arg1.numberOfKeys()>i){
+                    int result=arg0.getKey(i).compareTo(arg1.getKey(i));
+                    if(result!=0) return result;
+                    else i=i+1;
+                }
+                if(arg0.numberOfKeys()>i)return 1;
+                else if(arg1.numberOfKeys()>i)return -1;
+                else return 0;
             }
         };
 

@@ -13,7 +13,8 @@ public class CuckooHashing {
     private String[] array; // The array of elements
     private int currentSize; // The number of occupied cells
     private ArrayList<String> stash; //List of items that couldn't find a place
-    
+    private Stack cucLogs ; //Stack to log changes in the array during Insert process for Undo purposes
+
     /**
      * Construct the hash table.
      */
@@ -33,6 +34,7 @@ public class CuckooHashing {
         makeEmpty();
         hashFunctions = hf;
         numHashFunctions = hf.getNumberOfFunctions();
+        this.cucLogs=new Stack();
     }
     
     /**
@@ -52,6 +54,7 @@ public class CuckooHashing {
     }
     
     private boolean insertHelper1(String x) {
+        LinkedList<CuckooLog> changes = new LinkedList<>(); //LinkedList to contain all changes in the array during one Insert process
         while (true) {
             int pos = -1;
             int kick_pos = -1;
@@ -60,49 +63,71 @@ public class CuckooHashing {
             //but is necessary to avoid randomization so we can test your work
             ArrayList<ArrayList<String>> cycle_tester = new ArrayList<ArrayList<String>>();
             for(int i=0;i<this.capacity();i++){
-            	cycle_tester.add(i, new ArrayList<String>());
+                cycle_tester.add(i, new ArrayList<String>());
             }
             boolean cycle=false;
-            
+            changes.addFirst(new CuckooLog(x,kick_pos));
             int MAXTRIES  = this.size();
             for (int count = 0; count <= MAXTRIES; count++) {
                 for (int i = 0; i < numHashFunctions; i++) {
                     pos = myhash(x, i);
                     if(isCycle(cycle_tester,x,pos))
                     {
-                    	cycle=true;
-                    	break;
+                        cycle=true;
+                        break;
                     }
                     cycle_tester.get(pos).add(x);
                     if (array[pos] == null) {
                         array[pos] = x;
                         currentSize++;
+                        cucLogs.push(changes); //push finished List of changes to the stack
                         return true;
                     }
-                    
-                } 
+
+                }
                 if(cycle)
-                	break;
+                    break;
                 if(pos==kick_pos || kick_pos==-1)
-                	kick_pos= myhash(x, 0);
-				else
-					kick_pos=pos;
+                    kick_pos= myhash(x, 0);
+                else
+                    kick_pos=pos;
                 // none of the spots are available, kick out item in kick_pos
                 String tmp = array[kick_pos];
                 array[kick_pos] = x;
                 x = tmp;
+                changes.addFirst(new CuckooLog(x,kick_pos)); //add x to the log linkedlist with his position in the array before the change. Last change to be first in list
             }
             //insertion got into a cycle use overflow list
+            cucLogs.push(changes); //push finished List of changes to the stack
             this.stash.add(x);
-            return true;
+                return true;
         }
     }
     private boolean isCycle(ArrayList<ArrayList<String>> cycle_tester,String x,int i) {
     	return cycle_tester.get(i).contains(x);
     }
-	
+
+    /**
+     * Undo previous effective operations
+     *
+     */
 	public void undo() {
-		// TODO: implement your code here
+        // TODO: implement your code here
+
+        if(!cucLogs.empty()){
+            LinkedList<CuckooLog> changes = (LinkedList<CuckooLog>)cucLogs.pop();
+            //handle first change  - remove from position in array and place in its position before the action
+            CuckooLog lastChange = changes.removeFirst();
+            remove(lastChange.getValue(),true);
+            //move each value in the linkedList to it's place in the array before the change (from last change to first)
+            if(lastChange.getPreIndex()!=-1)
+                array[lastChange.getPreIndex()] = lastChange.getValue();
+            while(!changes.isEmpty()){
+                lastChange=changes.removeFirst();
+                if(lastChange.getPreIndex()!=-1)
+                    array[lastChange.getPreIndex()] = lastChange.getValue();
+            }
+        }
 	}
 
     /**
@@ -175,7 +200,17 @@ public class CuckooHashing {
      * @param x the item to remove.
      * @return true if item was found and removed
      */
-    public boolean remove(String x) {
+
+    public boolean remove(String x){return remove(x,false);}
+
+    /**
+     * Remove from the hash table, make sure to clear the log stack for Undo purposes.
+     *
+     * @param x the item to remove.
+     * @param isUndo to mark in case the remove function was trigered by Undo process
+     * @return true if item was found and removed
+     */
+    private boolean remove(String x, boolean isUndo) {
         int pos = findPos(x);
         if(pos==-1)
         	return false;
@@ -185,6 +220,8 @@ public class CuckooHashing {
         } else {
         	this.stash.remove(x);
         }
+        if(!isUndo)
+            cucLogs.clear();
         return true;
     }
 
